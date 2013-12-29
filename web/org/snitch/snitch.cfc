@@ -35,8 +35,8 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
      * Constructor method
      */
     public snitch function init( string settingsFile = getDirectoryFromPath(getCurrentTemplatePath()) & "/config/settings.ini.cfm" ) {
-        var _settings = createObject( 'java', 'java.util.Properties' ).init();
-        var _fs = createObject( 'java', 'java.io.FileInputStream').init( arguments.settingsFile );
+        var _settings = createObject( "java", "java.util.Properties" ).init();
+        var _fs = createObject( "java", "java.io.FileInputStream" ).init( arguments.settingsFile );
         _settings.load( _fs );
         _fs.close();
 
@@ -62,7 +62,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         var _local = {};
         _local['exception'] = parseException( arguments.exception, arguments.overrides );
         _local['scopes'] = parseAdditionalScopes();
-        _local['key'] = lCase( ( len(trim(_local['exception'].stacktrace)) ) ? hash( lCase( trim(_local['exception'].stacktrace) ),'SHA' ) : hash( lCase( trim(_local['exception'].message) ),'SHA' ) );
+        _local['key'] = lCase( ( len(trim(_local['exception'].stacktrace)) ) ? hash( lCase( trim(_local['exception'].stacktrace) ), "SHA" ) : hash( lCase( trim(_local['exception'].message) ), "SHA" ) );
 
         if ( variables.settings.sendEmail ) {
             sendEmailAlert( _local );
@@ -77,7 +77,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
      * Private methods
      */
     private string function generateLogFileName( required string key ) {
-        return expandPath(variables.settings.logsFolder&"/"&arguments.key&".log");
+        return expandPath(variables.settings.logsFolder & "/" & arguments.key & ".log");
     }
 
     private struct function parseAdditionalScopes() {
@@ -86,8 +86,8 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         _local.scope = "";
         _local.index = 1;
         if ( len(trim(variables.settings.additionalScopes)) ) {
-            for ( _local.index = 1; _local.index <= listLen(variables.settings.additionalScopes, ','); _local.index++ ) {
-                _local.scope = listGetAt(variables.settings.additionalScopes, _local.index, ',');
+            for ( _local.index = 1; _local.index <= listLen(variables.settings.additionalScopes, ","); _local.index++ ) {
+                _local.scope = listGetAt(variables.settings.additionalScopes, _local.index, ",");
                 if ( isDefined(_local.scope) && !isNull( evaluate(_local.scope) ) ) {
                     _ret[_local.scope] = evaluate(_local.scope);
                 }
@@ -98,12 +98,12 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
 
     private struct function parseException( required any exception, struct overrides = {} ) {
         var _ret = {
-            'detail' = '',
-            'message' = '',
-            'stacktrace' = '',
-            'context' = '',
-            'url' = ( structKeyExists( arguments.overrides, 'url' ) ) ? arguments.overrides.url : CGI.HTTP_HOST & CGI.path_info,
-            'client' = ( structKeyExists( arguments.overrides, 'client' ) ) ? arguments.overrides.client : CGI.HTTP_USER_AGENT
+            'detail' = "",
+            'message' = "",
+            'stacktrace' = "",
+            'context' = "",
+            'url' = ( structKeyExists( arguments.overrides, "url" ) ) ? arguments.overrides.url : CGI.HTTP_HOST & CGI.path_info,
+            'client' = ( structKeyExists( arguments.overrides, "client" ) ) ? arguments.overrides.client : CGI.HTTP_USER_AGENT
         };
         var _local = {};
         _local.key = "";
@@ -120,13 +120,13 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         _local.index = 1;
         for ( _local.key in arguments.obj ) {
             if ( !listFindNoCase( variables.settings.restrictedKeys, _local.key ) ) {
-                if( isValid('struct', arguments.obj[_local.key]) ) {
+                if( isValid("struct", arguments.obj[_local.key]) ) {
                     _ret[_local.key] = removeRestrictedKeys( arguments.obj[_local.key] );
                 }
-                else if( isValid('array', arguments.obj[_local.key]) ) {
+                else if( isValid("array", arguments.obj[_local.key]) ) {
                     _ret[_local.key] = [];
                     for ( _local.index = 1; _local.index <= arrayLen(arguments.obj[_local.key]); _local.index++ ) { 
-                        if( isValid('struct', arguments.obj[_local.key][_local.index]) ) {
+                        if( isValid("struct", arguments.obj[_local.key][_local.index]) ) {
                             _ret[_local.key][_local.index] = removeRestrictedKeys( arguments.obj[_local.key][_local.index] );
                         }
                         else {
@@ -149,12 +149,12 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         var _fileName = generateLogFileName( arguments.obj['key'] );
         var _fileObj = {
             'count' = 1,
-            'lastOccurance' = '',
+            'lastOccurance' = "",
             'exceptions' = []
         };
         lock name=arguments.obj['key'] timeout=1 type="exclusive" {
             if ( fileExists( _fileName ) ) {
-                _fileObj = deserializeJSON( fileRead( _fileName, 'UTF-8' ) );
+                _fileObj = deserializeJSON( fileRead( _fileName, "utf-8" ) );
                 _fileObj['count'] = val(_fileObj['count']) + 1;
             }
 
@@ -164,7 +164,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
                 arrayAppend( _fileObj['exceptions'], arguments.obj );
             }
 
-            fileWrite( _fileName, serializeJSON(_fileObj), 'UTF-8' );
+            fileWrite( _fileName, serializeJSON(_fileObj), "utf-8" );
         }
     }
 
@@ -197,6 +197,6 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
     }
 
     private void function throwError( string errorcode="snitch_no_errorcode_provided", string message="No error message provided.", string detail="" ) {
-        throw( type='Snitch', errorcode=arguments.errorCode, message=arguments.message, detail=(len(trim(arguments.detail))) ? arguments.detail : arguments.message );
+        throw( type="Snitch", errorcode=arguments.errorCode, message=arguments.message, detail=(len(trim(arguments.detail))) ? arguments.detail : arguments.message );
     }
 }
