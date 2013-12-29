@@ -1,5 +1,5 @@
 <cfscript>
-    variables.snitch = createObject('org.snitch.snitch').init( { sendEmail = false } );
+    variables.snitch = createObject('org.snitch.snitch').init();
     try {
         throw("Show how Snitch works!");
     }

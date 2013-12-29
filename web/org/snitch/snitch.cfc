@@ -34,22 +34,24 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
     /**
      * Constructor method
      */
-    public snitch function init( struct settings = { } ) {
-        var _local = {};
+    public snitch function init( string settingsFile = getDirectoryFromPath(getCurrentTemplatePath()) & "/config/settings.ini.cfm" ) {
+        var _settings = createObject( 'java', 'java.util.Properties' ).init();
+        var _fs = createObject( 'java', 'java.io.FileInputStream').init( arguments.settingsFile );
+        _settings.load( _fs );
+        _fs.close();
+
         variables.settings = {};
-        variables.settings.applicationName = "Snitch_" & hash(GetCurrenttemplatepath());
-        variables.settings.restrictedKeys = "auth_password,password,creditcard,cc";
-        variables.settings.additionalScopes = "form,url,session,cgi";
-        variables.settings.logsFolder = "/org/snitch/logs";
-        variables.settings.saveLog = true;
-        variables.settings.onlySaveNew = false;
-        variables.settings.sendEmail = true;
-        variables.settings.onlySendNew = false;
-        variables.settings.emailFrom = "test@email.com";
-        variables.settings.emailTo = "test@email.com";
-        for ( _local.key in arguments.settings ) {
-            variables.settings[_local.key] = arguments.settings[_local.key];
-        }
+        variables.settings.applicationName = _settings.getProperty( "applicationName", "Snitch_" & hash(GetCurrenttemplatepath()) ) ;
+        variables.settings.restrictedKeys = _settings.getProperty( "restrictedKeys", "auth_password,password,creditcard,cc" );
+        variables.settings.additionalScopes = _settings.getProperty( "additionalScopes", "form,url,session,cgi" );
+        variables.settings.logsFolder = _settings.getProperty( "logsFolder", "/org/snitch/logs" );
+        variables.settings.saveLog = _settings.getProperty( "saveLog", "true" );
+        variables.settings.onlySaveNew = _settings.getProperty( "onlySaveNew", "false" );
+        variables.settings.sendEmail = _settings.getProperty( "sendEmail", "true" );
+        variables.settings.onlySendNew = _settings.getProperty( "onlySendNew", "false" );
+        variables.settings.emailFrom = _settings.getProperty( "emailFrom", "" );
+        variables.settings.emailTo = _settings.getProperty( "emailTo", "" );
+
         return this;
     }
 

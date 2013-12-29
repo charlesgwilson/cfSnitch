@@ -1,0 +1,12 @@
+<cfabort/>
+[settings]
+applicationName=Snitch
+restrictedKeys=auth_password,password,creditcard,cc
+additionalScopes=form,url,session,cgi
+logsFolder=/org/snitch/logs
+saveLog=true
+onlySaveNew=false
+sendEmail=false
+onlySendNew=false
+emailFrom=test@email.com
+emailTo=test@email.com
