@@ -159,7 +159,10 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
             }
 
             _fileObj['lastOccurance'] = dateFormat( now(), "mm/dd/yyyy" ) & " " & timeFormat( now(), "hh:mm:ss tt" );
-            arrayAppend( _fileObj['exceptions'], arguments.obj );
+
+            if ( _fileObj['count'] == 1 || !variables.settings.onlySaveNew ) {
+                arrayAppend( _fileObj['exceptions'], arguments.obj );
+            }
 
             fileWrite( _fileName, serializeJSON(_fileObj), 'UTF-8' );
         }
