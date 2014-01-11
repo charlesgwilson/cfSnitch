@@ -2,6 +2,7 @@
 [settings]
 applicationName=Snitch
 restrictedKeys=auth_password,password,creditcard,cc
+maskRestrictedKeys=true
 additionalScopes=form,url,session,cgi
 logsFolder=/org/snitch/logs
 saveLog=true

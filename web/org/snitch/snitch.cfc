@@ -43,6 +43,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         variables.settings = {};
         variables.settings.applicationName = _settings.getProperty( "applicationName", "Snitch_" & hash(GetCurrenttemplatepath()) ) ;
         variables.settings.restrictedKeys = _settings.getProperty( "restrictedKeys", "auth_password,password,creditcard,cc" );
+        variables.settings.maskRestrictedKeys = _settings.getProperty( "maskRestrictedKeys", "true" );
         variables.settings.additionalScopes = _settings.getProperty( "additionalScopes", "form,url,session,cgi" );
         variables.settings.logsFolder = _settings.getProperty( "logsFolder", "/org/snitch/logs" );
         variables.settings.saveLog = _settings.getProperty( "saveLog", "true" );
@@ -139,7 +140,12 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
                 }
             }
             else {
-                _ret[_local.key] = "Value removed by Snitch.";
+                if ( variables.settings.maskRestrictedKeys && isValid("string", arguments.obj[_local.key]) ) {
+                    _ret[_local.key] = len(arguments.obj[_local.key]) > 0 ?  repeatString("*", len(arguments.obj[_local.key])) : "Value was empty.";
+                }
+                else {
+                    _ret[_local.key] = "Value removed by Snitch.";
+                }
             }
         }
         return _ret;
