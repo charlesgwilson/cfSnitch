@@ -52,6 +52,13 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         variables.settings.onlySendNew = _settings.getProperty( "onlySendNew", "false" );
         variables.settings.emailFrom = _settings.getProperty( "emailFrom", "" );
         variables.settings.emailTo = _settings.getProperty( "emailTo", "" );
+        variables.settings.useDefaultMailServer = _settings.getProperty( "useDefaultMailServer", "true" );
+        variables.settings.mailServerHost = _settings.getProperty( "mailServerHost", "" );
+        variables.settings.mailServerPort = _settings.getProperty( "mailServerPort", "" );
+        variables.settings.mailServerUsername = _settings.getProperty( "mailServerUsername", "" );
+        variables.settings.mailServerPassword = _settings.getProperty( "mailServerPassword", "" );
+        variables.settings.useSSL = _settings.getProperty( "useSSL", "false" );
+        variables.settings.useTLS = _settings.getProperty( "useTLS", "false" );
 
         return this;
     }
@@ -194,6 +201,18 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
             mail.setSubject( "[" & variables.settings.applicationName & "] Snitch tracked exception " & arguments.obj['key'] );
             mail.setFrom( variables.settings.emailFrom );
             mail.setTo( variables.settings.emailTo );
+            if ( !variables.settings.useDefaultMailServer ) {
+                mail.setServer( variables.settings.mailServerHost );
+                mail.setPort( variables.settings.mailServerPort );
+            }
+            if ( len(trim(variables.settings.mailServerUsername)) > 0 ) {
+                mail.setUsername( variables.settings.mailServerUsername );
+            }
+            if ( len(trim(variables.settings.mailServerPassword)) > 0 ) {
+                mail.setPassword( variables.settings.mailServerPassword );
+            }
+            mail.setUseSSL( variables.settings.useSSL );
+            mail.setUseTLS( variables.settings.useTLS );
 
             mail.addPart( type="html", charset="utf-8", body=trim( _emailHTMLContent ) );
             mail.addPart( type="text", charset="utf-8", wraptext="72", body=trim( _emailTextContent ) );
