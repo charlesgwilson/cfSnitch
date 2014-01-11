@@ -197,27 +197,27 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
                 writeOutput("Snitch tracked an exception, key: " & arguments.obj['key'] & ", please visit your Snitch installation for more details.");
             }
 
-            var mail = new mail();
-            mail.setSubject( "[" & variables.settings.applicationName & "] Snitch tracked exception " & arguments.obj['key'] );
-            mail.setFrom( variables.settings.emailFrom );
-            mail.setTo( variables.settings.emailTo );
+            var _mail = new mail();
+            _mail.setSubject( "[" & variables.settings.applicationName & "] Snitch tracked exception " & arguments.obj['key'] );
+            _mail.setFrom( variables.settings.emailFrom );
+            _mail.setTo( variables.settings.emailTo );
             if ( !variables.settings.useDefaultMailServer ) {
-                mail.setServer( variables.settings.mailServerHost );
-                mail.setPort( variables.settings.mailServerPort );
+                _mail.setServer( variables.settings.mailServerHost );
+                _mail.setPort( variables.settings.mailServerPort );
             }
             if ( len(trim(variables.settings.mailServerUsername)) > 0 ) {
-                mail.setUsername( variables.settings.mailServerUsername );
+                _mail.setUsername( variables.settings.mailServerUsername );
             }
             if ( len(trim(variables.settings.mailServerPassword)) > 0 ) {
-                mail.setPassword( variables.settings.mailServerPassword );
+                _mail.setPassword( variables.settings.mailServerPassword );
             }
-            mail.setUseSSL( variables.settings.useSSL );
-            mail.setUseTLS( variables.settings.useTLS );
+            _mail.setUseSSL( variables.settings.useSSL );
+            _mail.setUseTLS( variables.settings.useTLS );
 
-            mail.addPart( type="html", charset="utf-8", body=trim( _emailHTMLContent ) );
-            mail.addPart( type="text", charset="utf-8", wraptext="72", body=trim( _emailTextContent ) );
+            _mail.addPart( type="html", charset="utf-8", body=trim( _emailHTMLContent ) );
+            _mail.addPart( type="text", charset="utf-8", wraptext="72", body=trim( _emailTextContent ) );
 
-            mail.send();
+            _mail.send();
         }
     }
 
