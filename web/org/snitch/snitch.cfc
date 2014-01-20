@@ -34,31 +34,56 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
     /**
      * Constructor method
      */
-    public snitch function init( string settingsFile = getDirectoryFromPath(getCurrentTemplatePath()) & "/config/settings.ini.cfm" ) {
-        var _settings = createObject( "java", "java.util.Properties" ).init();
-        var _fs = createObject( "java", "java.io.FileInputStream" ).init( arguments.settingsFile );
-        _settings.load( _fs );
-        _fs.close();
+    public snitch function init( string settingsFile = getDirectoryFromPath(getCurrentTemplatePath()) & "config/settings.ini.cfm" ) {
+        var _propertyFileGroups = getProfileSections( arguments.settingsFile );
+        var _local = {};
 
+        if ( !structKeyExists( _propertyFileGroups, "default" ) ) {
+            throwError(errorcode="snitch_no_default_group", message="No default group in settings file.", detail="A default group of settings must be in the settings file.");
+        }
+
+        // Set reserved group names - names of groups not allowed as plugins
+        variables.reservedGroupNames = "default,local,development,staging,production,snitch";
+
+        // Create settings struct and load default values
         variables.settings = {};
-        variables.settings.applicationName = _settings.getProperty( "applicationName", "Snitch_" & hash(GetCurrenttemplatepath()) ) ;
-        variables.settings.restrictedKeys = _settings.getProperty( "restrictedKeys", "auth_password,password,creditcard,cc" );
-        variables.settings.maskRestrictedKeys = _settings.getProperty( "maskRestrictedKeys", "true" );
-        variables.settings.additionalScopes = _settings.getProperty( "additionalScopes", "form,url,session,cgi" );
-        variables.settings.logsFolder = _settings.getProperty( "logsFolder", "/org/snitch/logs" );
-        variables.settings.saveLog = _settings.getProperty( "saveLog", "true" );
-        variables.settings.onlySaveNew = _settings.getProperty( "onlySaveNew", "false" );
-        variables.settings.sendEmail = _settings.getProperty( "sendEmail", "true" );
-        variables.settings.onlySendNew = _settings.getProperty( "onlySendNew", "false" );
-        variables.settings.emailFrom = _settings.getProperty( "emailFrom", "" );
-        variables.settings.emailTo = _settings.getProperty( "emailTo", "" );
-        variables.settings.useDefaultMailServer = _settings.getProperty( "useDefaultMailServer", "true" );
-        variables.settings.mailServerHost = _settings.getProperty( "mailServerHost", "" );
-        variables.settings.mailServerPort = _settings.getProperty( "mailServerPort", "" );
-        variables.settings.mailServerUsername = _settings.getProperty( "mailServerUsername", "" );
-        variables.settings.mailServerPassword = _settings.getProperty( "mailServerPassword", "" );
-        variables.settings.useSSL = _settings.getProperty( "useSSL", "false" );
-        variables.settings.useTLS = _settings.getProperty( "useTLS", "false" );
+        variables.settings['snitch'] = {};
+        variables.settings['snitch']['applicationName'] = "Snitch_" & hash(GetCurrenttemplatepath());
+        variables.settings['snitch']['restrictedKeys'] = "auth_password,password,creditcard,cc";
+        variables.settings['snitch']['maskRestrictedKeys'] = true;
+        variables.settings['snitch']['additionalScopes'] = "form,url,session,cgi";
+        variables.settings['snitch']['logsFolder'] = "/org/snitch/logs";
+        variables.settings['snitch']['saveLog'] = true;
+        variables.settings['snitch']['onlySaveNew'] = false;
+        variables.settings['snitch']['url'] = "";
+
+        // Load default settings from file
+        for ( _local.index = 1; _local.index <= listLen( _propertyFileGroups['default'] ); _local.index++ ) {
+            _local.property = listGetAt( _propertyFileGroups['default'], _local.index );
+            variables.settings['snitch'][_local.property] = getProfileString( arguments.settingsFile, 'default', _local.property );
+        }
+
+        // Load target environment settings from file, overriding default settings
+        var _environment = getProfileString( arguments.settingsFile, "default", "environment" );
+
+        if ( len(trim(_environment)) && structKeyExists( _propertyFileGroups, _environment ) ) {
+            for ( _local.index = 1; _local.index <= listLen( _propertyFileGroups[_environment] ); _local.index++ ) {
+                _local.property = listGetAt( _propertyFileGroups[_environment], _local.index );
+                variables.settings['snitch'][_local.property] = getProfileString( arguments.settingsFile, _environment, _local.property );
+            }
+        }
+
+        // Load settings for notification plugins
+        for ( var _local.key in _propertyFileGroups ) {
+            if ( !listFindNoCase( variables.reservedGroupNames, _local.key ) ) {
+                variables.settings[_local.key] = {};
+                
+                for ( _local.index = 1; _local.index <= listLen( _propertyFileGroups[_local.key] ); _local.index++ ) {
+                    _local.property = listGetAt( _propertyFileGroups[_local.key], _local.index );
+                    variables.settings[_local.key][_local.property] = getProfileString( arguments.settingsFile, _local.key, _local.property );
+                }
+            }
+        }
 
         return this;
     }
@@ -68,24 +93,45 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
      */
     public void function log( required any exception, struct overrides = {} ) {
         var _local = {};
-        _local['exception'] = parseException( arguments.exception, arguments.overrides );
-        _local['scopes'] = parseAdditionalScopes();
-        _local['key'] = lCase( ( len(trim(_local['exception'].stacktrace)) ) ? hash( lCase( trim(_local['exception'].stacktrace) ), "SHA" ) : hash( lCase( trim(_local['exception'].message) ), "SHA" ) );
+        _local.log = {};
+        _local.log['exception'] = parseException( arguments.exception, arguments.overrides );
+        _local.log['scopes'] = parseAdditionalScopes();
+        _local.log['key'] = generateKey( _local.log['exception'] );
+        _local.log['timeStamp'] = now();
+        _local.isNewException = !fileExists( generateLogFileName( _local.log['key'] ) );
+        _local.key = "";
+        _local.plugin = "";
 
-        if ( variables.settings.sendEmail ) {
-            sendEmailAlert( _local );
+        if ( variables.settings.snitch.saveLog ) {
+            saveToLogFile( _local.log, _local.isNewException );
         }
 
-        if ( variables.settings.saveLog ) {
-            saveToLogFile( _local );
+        for ( _local.key in variables.settings ) {
+            if ( !listFindNoCase( variables.reservedGroupNames, _local.key ) && variables.settings.snitch[_local.key] && fileExists( getDirectoryFromPath(getCurrentTemplatePath()) & "notifications/"&lCase(_local.key)&".cfc" ) ) {
+                _local.plugin = createObject( "component",  "notifications/"&lCase(_local.key) );
+                _local.plugin.process( exception=_local.log, isNewException=_local.isNewException, snitchSettings=variables.settings.snitch, pluginSettings=variables.settings[_local.key] );
+            }
         }
     }
 
     /**
      * Private methods
      */
+    private string function generateKey( required struct exception ) {
+        var _ret = "";
+        var _stacktrace = "";
+        if ( len(trim(arguments.exception.stacktrace)) ) {
+            _stacktrace = reMatch("[\w.\$]*\([\w.:\\/]*\)", lCase(trim(arguments.exception.stacktrace)));
+            _ret = lCase( hash( arrayToList(_stacktrace, ","), "SHA" ) );
+        }
+        else if ( len(trim(arguments.exception.message)) ) {
+            _ret = lCase( hash( lCase( trim(arguments.exception.message) ), "SHA" ) );
+        }
+        return ( len(trim(_ret)) ) ? _ret : lCase( hash( getTickCount(), "SHA" ) );
+    }
+
     private string function generateLogFileName( required string key ) {
-        return expandPath(variables.settings.logsFolder & "/" & arguments.key & ".log");
+        return expandPath(variables.settings.snitch.logsFolder & "/" & arguments.key & ".log");
     }
 
     private struct function parseAdditionalScopes() {
@@ -93,9 +139,9 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         var _local = {};
         _local.scope = "";
         _local.index = 1;
-        if ( len(trim(variables.settings.additionalScopes)) ) {
-            for ( _local.index = 1; _local.index <= listLen(variables.settings.additionalScopes, ","); _local.index++ ) {
-                _local.scope = listGetAt(variables.settings.additionalScopes, _local.index, ",");
+        if ( len(trim(variables.settings.snitch.additionalScopes)) ) {
+            for ( _local.index = 1; _local.index <= listLen(variables.settings.snitch.additionalScopes, ","); _local.index++ ) {
+                _local.scope = listGetAt(variables.settings.snitch.additionalScopes, _local.index, ",");
                 if ( isDefined(_local.scope) && !isNull( evaluate(_local.scope) ) ) {
                     _ret[_local.scope] = evaluate(_local.scope);
                 }
@@ -127,7 +173,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         _local.key = "";
         _local.index = 1;
         for ( _local.key in arguments.obj ) {
-            if ( !listFindNoCase( variables.settings.restrictedKeys, _local.key ) ) {
+            if ( !listFindNoCase( variables.settings.snitch.restrictedKeys, _local.key ) ) {
                 if( isValid("struct", arguments.obj[_local.key]) ) {
                     _ret[_local.key] = removeRestrictedKeys( arguments.obj[_local.key] );
                 }
@@ -147,8 +193,8 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
                 }
             }
             else {
-                if ( variables.settings.maskRestrictedKeys && isValid("string", arguments.obj[_local.key]) ) {
-                    _ret[_local.key] = len(arguments.obj[_local.key]) > 0 ?  repeatString("*", len(arguments.obj[_local.key])) : "Value was empty.";
+                if ( variables.settings.snitch.maskRestrictedKeys && isValid("string", arguments.obj[_local.key]) ) {
+                    _ret[_local.key] = len(arguments.obj[_local.key]) > 0 ?  repeatString("*", len(arguments.obj[_local.key])) : "Value was empty, Snitch had nothing to mask.";
                 }
                 else {
                     _ret[_local.key] = "Value removed by Snitch.";
@@ -158,7 +204,7 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
         return _ret;
     }
 
-    private void function saveToLogFile( required struct obj ) {
+    private void function saveToLogFile( required struct obj, required boolean isNewException ) {
         var _fileName = generateLogFileName( arguments.obj['key'] );
         var _fileObj = {
             'count' = 1,
@@ -173,51 +219,11 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
 
             _fileObj['lastOccurance'] = dateFormat( now(), "mm/dd/yyyy" ) & " " & timeFormat( now(), "hh:mm:ss tt" );
 
-            if ( _fileObj['count'] == 1 || !variables.settings.onlySaveNew ) {
+            if ( isNewException || !variables.settings.snitch.onlySaveNew ) {
                 arrayAppend( _fileObj['exceptions'], arguments.obj );
             }
 
             fileWrite( _fileName, serializeJSON(_fileObj), "utf-8" );
-        }
-    }
-
-    private void function sendEmailAlert( required struct obj ) {
-        var _local = {};
-        _local.key = "";
-        if ( !variables.settings.onlySendNew || !fileExists( generateLogFileName( arguments.obj['key'] ) ) ) {
-            savecontent variable="_emailHTMLContent" {
-                writeOutput("<h3>Snitch tracked an exception, " & arguments.obj['key'] & ", details are as follows:</h3><br/><br />");
-                for ( _local.key in arguments.obj ) {
-                    writeDump( label=_local.key, var=arguments.obj[_local.key] );
-                    writeOutput("<br />");
-                }
-                writeOutput("<br />Please visit your Snitch installation for more details.");
-            }
-            savecontent variable="_emailTextContent" {
-                writeOutput("Snitch tracked an exception, key: " & arguments.obj['key'] & ", please visit your Snitch installation for more details.");
-            }
-
-            var _mail = new mail();
-            _mail.setSubject( "[" & variables.settings.applicationName & "] Snitch tracked exception " & arguments.obj['key'] );
-            _mail.setFrom( variables.settings.emailFrom );
-            _mail.setTo( variables.settings.emailTo );
-            if ( !variables.settings.useDefaultMailServer ) {
-                _mail.setServer( variables.settings.mailServerHost );
-                _mail.setPort( variables.settings.mailServerPort );
-            }
-            if ( len(trim(variables.settings.mailServerUsername)) > 0 ) {
-                _mail.setUsername( variables.settings.mailServerUsername );
-            }
-            if ( len(trim(variables.settings.mailServerPassword)) > 0 ) {
-                _mail.setPassword( variables.settings.mailServerPassword );
-            }
-            _mail.setUseSSL( variables.settings.useSSL );
-            _mail.setUseTLS( variables.settings.useTLS );
-
-            _mail.addPart( type="html", charset="utf-8", body=trim( _emailHTMLContent ) );
-            _mail.addPart( type="text", charset="utf-8", wraptext="72", body=trim( _emailTextContent ) );
-
-            _mail.send();
         }
     }
 

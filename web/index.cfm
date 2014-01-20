@@ -4,7 +4,7 @@
         throw("Show how Snitch works!");
     }
     catch( any e ) {
-        variables.snitch.log(e);
+       variables.snitch.log(e);
     }
     
 </cfscript>
