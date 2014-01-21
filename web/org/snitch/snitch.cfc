@@ -91,6 +91,26 @@ component output="false" displayname="cfSnitch" hint="Snitch is an exception log
     /**
      * Public methods
      */
+    public void function delete( required string logID ) {
+        var _fileName = generateLogFileName( arguments.logID );
+        if ( fileExists( _fileName ) ) {
+            fileDelete( _fileName );
+        }
+    }
+
+    public struct function get( required string logID ) {
+        var _ret = {};
+        var _fileName = generateLogFileName( arguments.logID );
+        if ( fileExists( _fileName ) ) {
+            _ret = deserializeJSON( fileRead( _fileName, "utf-8" ) );
+        }
+        return _ret;
+    }
+
+    public query function list() {
+        return directoryList( expandPath( variables.settings.snitch.logsFolder ), true, "query",  "*.log", "datelastmodified DESC" );
+    }
+
     public void function log( required any exception, struct overrides = {} ) {
         var _local = {};
         _local.log = {};
