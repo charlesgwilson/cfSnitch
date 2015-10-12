@@ -6,8 +6,8 @@ Snitch is an exception logger / tracker for ColdFusion and Railo
 ##This is no longer being maintaned and has been left up for reference purposes only
 I appologize I never finished this, my team has been using Errbit along with the AirBrake Notifier for some time now and has been realy pleased with it. If you would like more information on how to set up Errbit or how the notifier works, please see the links below or feel free to contact me.
 
-https://github.com/timblair/coldfusion-airbrake-notifier
-https://github.com/charlesgwilson/mura-airbrake
+- https://github.com/timblair/coldfusion-airbrake-notifier
+- https://github.com/charlesgwilson/mura-airbrake
 
 How does it work? 
 --------------------------
